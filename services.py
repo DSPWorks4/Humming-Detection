@@ -16,7 +16,7 @@ EMBEDDING_WEIGHT = 0.6  # Higher weight = embeddings more important
 DTW_WEIGHT = 0.4        # Higher weight = DTW more important
 
 # Final match threshold (0-1 scale, higher = stricter)
-MATCH_THRESHOLD = 0.65  # Tuned to reduce false positives
+MATCH_THRESHOLD = 0.5  # Tuned to reduce false positives
 
 # Legacy thresholds (kept for backwards compatibility)
 SIMILARITY_THRESHOLD = 0.25

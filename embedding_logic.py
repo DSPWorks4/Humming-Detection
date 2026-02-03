@@ -16,6 +16,59 @@ import shutil
 # Global flag to check if Demucs is available
 _DEMUCS_AVAILABLE = None
 
+# Formats that need conversion via ffmpeg
+_NEEDS_CONVERSION = {'.webm', '.ogg', '.opus', '.m4a', '.aac', '.wma'}
+
+
+def convert_to_wav(audio_file: str) -> str:
+    """
+    Convert audio file to WAV format using ffmpeg.
+    
+    Args:
+        audio_file: Path to the input audio file
+        
+    Returns:
+        Path to the converted WAV file (temp file)
+    """
+    ext = os.path.splitext(audio_file)[1].lower()
+    
+    # If already a supported format, return as-is
+    if ext in {'.wav', '.mp3', '.flac'}:
+        return audio_file
+    
+    # Create temp WAV file
+    tmp_wav = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+    tmp_wav.close()
+    
+    try:
+        # Use ffmpeg to convert
+        result = subprocess.run(
+            [
+                'ffmpeg', '-y',  # Overwrite output
+                '-i', audio_file,
+                '-acodec', 'pcm_s16le',  # PCM 16-bit
+                '-ar', '22050',  # Sample rate
+                '-ac', '1',  # Mono
+                tmp_wav.name
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        
+        if result.returncode != 0:
+            os.unlink(tmp_wav.name)
+            raise RuntimeError(f"ffmpeg conversion failed: {result.stderr}")
+        
+        return tmp_wav.name
+        
+    except FileNotFoundError:
+        os.unlink(tmp_wav.name)
+        raise RuntimeError("ffmpeg not found. Please install ffmpeg to process webm files.")
+    except subprocess.TimeoutExpired:
+        os.unlink(tmp_wav.name)
+        raise RuntimeError("ffmpeg conversion timed out")
+
 
 def is_demucs_available():
     """Check if Demucs is installed and available."""
@@ -144,8 +197,16 @@ def generate_embedding(
         A normalized 128-dimensional numpy array representing pitch occurrences
     """
     demucs_output_dir = None
+    converted_file = None
     
     try:
+        # Step 0: Convert unsupported formats (webm, etc.) to wav
+        ext = os.path.splitext(audio_file)[1].lower()
+        if ext in _NEEDS_CONVERSION:
+            print(f"  Converting {ext} to wav...")
+            converted_file = convert_to_wav(audio_file)
+            audio_file = converted_file
+        
         # Step 1: Vocal isolation
         if use_demucs and is_demucs_available():
             print(f"  Using Demucs for vocal isolation...")
@@ -210,6 +271,9 @@ def generate_embedding(
         # Cleanup Demucs temp directory
         if demucs_output_dir and os.path.exists(demucs_output_dir):
             shutil.rmtree(demucs_output_dir, ignore_errors=True)
+        # Cleanup converted temp file
+        if converted_file and os.path.exists(converted_file):
+            os.unlink(converted_file)
 
 
 def generate_embedding_from_array(
@@ -296,8 +360,15 @@ def extract_chromagram(audio_file: str, use_demucs: bool = True, use_hpss: bool 
     import scipy.ndimage
     
     demucs_output_dir = None
+    converted_file = None
     
     try:
+        # Convert unsupported formats (webm, etc.) to wav
+        ext = os.path.splitext(audio_file)[1].lower()
+        if ext in _NEEDS_CONVERSION:
+            converted_file = convert_to_wav(audio_file)
+            audio_file = converted_file
+        
         # Vocal isolation
         if use_demucs and is_demucs_available():
             demucs_output_dir = tempfile.mkdtemp(prefix='demucs_')
@@ -323,6 +394,8 @@ def extract_chromagram(audio_file: str, use_demucs: bool = True, use_hpss: bool 
     finally:
         if demucs_output_dir and os.path.exists(demucs_output_dir):
             shutil.rmtree(demucs_output_dir, ignore_errors=True)
+        if converted_file and os.path.exists(converted_file):
+            os.unlink(converted_file)
 
 
 def extract_chromagram_from_array(y: np.ndarray, sr: int = 22050, use_hpss: bool = True) -> np.ndarray:

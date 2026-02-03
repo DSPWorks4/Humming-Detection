@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Recorder from './Recorder';
 import './App.css';
 
@@ -11,6 +11,7 @@ function App() {
     const [songs, setSongs] = useState([]);
     const [testFile, setTestFile] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
+    const fileInputRef = useRef(null);
 
     // Fetch available songs on mount
     useEffect(() => {
@@ -126,6 +127,10 @@ function App() {
         } finally {
             setIsLoading(false);
             setSelectedFile(null);
+            // Reset file input
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
         }
     };
 
@@ -151,6 +156,7 @@ function App() {
                             onChange={handleFileSelect}
                             className="file-input"
                             id="file-upload"
+                            ref={fileInputRef}
                         />
                         <label htmlFor="file-upload" className="file-label">
                             📁 {selectedFile ? selectedFile.name : 'Choose Audio File'}
