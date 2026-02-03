@@ -19,7 +19,7 @@ DTW_WEIGHT = 0.4        # Higher weight = DTW more important
 MATCH_THRESHOLD = 0.65  # Tuned to reduce false positives
 
 # Legacy thresholds (kept for backwards compatibility)
-SIMILARITY_THRESHOLD = 0.4  
+SIMILARITY_THRESHOLD = 0.25
 DTW_THRESHOLD = 0.2         
 
 def get_dtw_distance(query_chroma: np.ndarray, song_chroma: np.ndarray) -> float:
