@@ -10,6 +10,15 @@ from build_database import load_database, search, METADATA_FILE, CHROMAGRAM_DIR
 _faiss_index = None
 _metadata = None
 
+# Weighted Scoring Configuration
+# These weights determine the contribution of each metric to the final score
+EMBEDDING_WEIGHT = 0.6  # Higher weight = embeddings more important
+DTW_WEIGHT = 0.4        # Higher weight = DTW more important
+
+# Final match threshold (0-1 scale, higher = stricter)
+MATCH_THRESHOLD = 0.65  # Tuned to reduce false positives
+
+# Legacy thresholds (kept for backwards compatibility)
 SIMILARITY_THRESHOLD = 0.4  
 DTW_THRESHOLD = 0.2         
 
@@ -106,6 +115,64 @@ def dtw_rerank(
     results.sort(key=lambda x: x[1])
     
     return results[:top_k]
+
+def compute_weighted_score(
+    embedding_similarity: float,
+    dtw_score: float,
+    embedding_weight: float = EMBEDDING_WEIGHT,
+    dtw_weight: float = DTW_WEIGHT
+) -> float:
+    """
+    Compute weighted combined score from embedding similarity and DTW.
+    
+    Args:
+        embedding_similarity: FAISS similarity score (0-1, higher is better)
+        dtw_score: DTW distance (lower is better, typically 0-0.5)
+        embedding_weight: Weight for embedding score (default 0.6)
+        dtw_weight: Weight for DTW score (default 0.4)
+    
+    Returns:
+        Combined score (0-1, higher is better)
+    """
+    # Normalize DTW score to 0-1 range (invert so higher is better)
+    # Assume DTW scores typically range from 0 to 0.5
+    dtw_normalized = max(0.0, min(1.0, 1.0 - (dtw_score / 0.5)))
+    
+    # Weighted combination
+    weighted_score = (
+        embedding_weight * embedding_similarity +
+        dtw_weight * dtw_normalized
+    )
+    
+    return weighted_score
+
+def rerank_with_weighted_score(
+    candidates: list,
+    embedding_weight: float = EMBEDDING_WEIGHT,
+    dtw_weight: float = DTW_WEIGHT
+) -> list:
+    """
+    Re-rank candidates using weighted score combining embedding + DTW.
+    
+    Args:
+        candidates: List of (metadata, dtw_score, faiss_score) tuples
+        
+    Returns:
+        Re-ranked list sorted by weighted score (highest first)
+    """
+    scored_candidates = []
+    
+    for meta, dtw_score, faiss_score in candidates:
+        weighted_score = compute_weighted_score(
+            faiss_score, dtw_score,
+            embedding_weight, dtw_weight
+        )
+        scored_candidates.append((meta, dtw_score, faiss_score, weighted_score))
+    
+    # Sort by weighted score (descending - higher is better)
+    scored_candidates.sort(key=lambda x: x[3], reverse=True)
+    
+    return scored_candidates
 
 def init_database():
     """Initialize the database on startup."""
@@ -210,11 +277,19 @@ def process_audio_query(
     audio_path: str,
     k: int = 5,
     similarity_threshold: float = SIMILARITY_THRESHOLD,
-    dtw_threshold: float = DTW_THRESHOLD,
-    max_duration: float = 30.0
+    dtw_threshold: float = None,  # Optional, uses weighted scoring if None
+    match_threshold: float = MATCH_THRESHOLD,
+    embedding_weight: float = EMBEDDING_WEIGHT,
+    dtw_weight: float = DTW_WEIGHT,
+    max_duration: float = 30.0,
+    use_weighted_scoring: bool = True
 ) -> dict:
     """
-    Full audio query processing pipeline.
+    Full audio query processing pipeline with weighted scoring.
+    
+    Args:
+        use_weighted_scoring: If True, use weighted combination of scores.
+                              If False, use legacy threshold-based approach.
         
     Returns:
         Dictionary with match results
@@ -233,7 +308,7 @@ def process_audio_query(
             "message": f"No match - best embedding similarity {faiss_results[0][1]:.2%} below threshold {similarity_threshold:.0%}",
             "matches": [],
             "best_score": None,
-            "threshold": dtw_threshold,
+            "threshold": dtw_threshold or match_threshold,
             "similarity_threshold": similarity_threshold
         }
     
@@ -241,20 +316,56 @@ def process_audio_query(
     query_chroma = extract_query_chromagram(audio_path, max_duration)
     reranked = rerank_with_dtw(query_chroma, filtered_candidates, top_k=k)
     
-    # Check if best match passes DTW threshold
-    best_dtw_score = reranked[0][1] if reranked else float('inf')
-    found_match = bool(best_dtw_score < dtw_threshold)
-    
-    # Format response
-    matches = format_matches(reranked)
-    
-    return {
-        "success": True,
-        "found": found_match,
-        "message": "Match found!" if found_match else "No match - DTW score exceeds threshold",
-        "matches": matches if found_match else [],
-        "best_score": float(round(best_dtw_score, 4)),
-        "threshold": dtw_threshold,
-        "similarity_threshold": similarity_threshold
-    }
+    # STAGE 3: Apply weighted scoring or threshold-based decision
+    if use_weighted_scoring:
+        # Use weighted score combining embedding + DTW
+        weighted_reranked = rerank_with_weighted_score(
+            reranked, embedding_weight, dtw_weight
+        )
+        
+        # Check if best match passes weighted threshold
+        best_weighted_score = weighted_reranked[0][3] if weighted_reranked else 0.0
+        found_match = bool(best_weighted_score >= match_threshold)
+        
+        # Format response with weighted scores
+        matches = []
+        for i, (meta, dtw_score, faiss_score, weighted_score) in enumerate(weighted_reranked):
+            matches.append({
+                "rank": i + 1,
+                "title": meta["title"],
+                "artist": meta["artist"],
+                "filename": meta["filename"],
+                "dtw_score": float(round(dtw_score, 4)),
+                "similarity": float(round(faiss_score * 100, 2)),
+                "weighted_score": float(round(weighted_score, 4))  # New field
+            })
+        
+        return {
+            "success": True,
+            "found": found_match,
+            "message": "Match found!" if found_match else "No match - weighted score below threshold",
+            "matches": matches if found_match else [],
+            "best_score": float(round(best_weighted_score, 4)),
+            "threshold": match_threshold,
+            "similarity_threshold": similarity_threshold,
+            "scoring_method": "weighted"
+        }
+    else:
+        # Legacy: Use DTW threshold only
+        dtw_threshold = dtw_threshold or DTW_THRESHOLD
+        best_dtw_score = reranked[0][1] if reranked else float('inf')
+        found_match = bool(best_dtw_score < dtw_threshold)
+        
+        matches = format_matches(reranked)
+        
+        return {
+            "success": True,
+            "found": found_match,
+            "message": "Match found!" if found_match else "No match - DTW score exceeds threshold",
+            "matches": matches if found_match else [],
+            "best_score": float(round(best_dtw_score, 4)),
+            "threshold": dtw_threshold,
+            "similarity_threshold": similarity_threshold,
+            "scoring_method": "threshold"
+        }
 
