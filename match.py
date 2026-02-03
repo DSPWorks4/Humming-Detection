@@ -87,9 +87,11 @@ def match_hum(hum_path):
     print("\n" + "="*30)
     print(f"Top Match: {best_name} (Score: {best_score:.4f})")
     
-    if best_score < 0.18:
+    # Threshold: DTW score < 0.2 indicates a match
+    THRESHOLD = 0.2
+    if best_score < THRESHOLD:
         print(f"RESULT: ✅ MATCH FOUND: {best_name}")
     else:
-        print(f"RESULT: ❌ NO MATCH (Score {best_score:.4f} too high)")
+        print(f"RESULT: ❌ NO MATCH - Score {best_score:.4f} exceeds threshold of {THRESHOLD}")
 
 match_hum(r"Tests\MOONDEITY x INTERWORLD  ONE CHANCE  SLOWED  REVERBED.mp3")

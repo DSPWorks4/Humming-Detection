@@ -1,0 +1,23 @@
+# Query-by-Humming Web Application Dependencies
+
+# Audio Processing
+librosa
+soundfile
+numpy
+scipy
+
+# MIDI Pitch Detection
+basic-pitch
+
+# Vocal Isolation (Demucs)
+demucs
+
+# Vector Search
+faiss-cpu
+
+# Web Framework
+flask
+flask-cors
+
+# Optional: Better audio format support
+pydub

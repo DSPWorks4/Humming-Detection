@@ -1,0 +1,344 @@
+.App {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.App-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.App-header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+
+.App-header p {
+    color: #666;
+    font-size: 1.1rem;
+}
+
+/* Recorder Section */
+.recorder-section {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+/* Divider */
+.divider {
+    margin: 25px 0;
+    display: flex;
+    align-items: center;
+    text-align: center;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 2px solid #ddd;
+}
+
+.divider span {
+    padding: 0 15px;
+    color: #888;
+    font-weight: bold;
+}
+
+/* Upload Section */
+.upload-section {
+    margin: 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+}
+
+.file-input {
+    display: none;
+}
+
+.file-label {
+    padding: 12px 25px;
+    background: #fff;
+    border: 2px dashed #2196F3;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 1rem;
+    color: #333;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+}
+
+.file-label:hover {
+    background: #e3f2fd;
+    border-color: #1976D2;
+}
+
+.upload-button {
+    padding: 15px 30px;
+    font-size: 1.1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    background: #FF9800;
+    color: white;
+}
+
+.upload-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.upload-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.recorder-controls {
+    margin-bottom: 20px;
+}
+
+.record-button,
+.stop-button,
+.test-button {
+    padding: 15px 30px;
+    font-size: 1.1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.record-button {
+    background: #4CAF50;
+    color: white;
+}
+
+.stop-button {
+    background: #f44336;
+    color: white;
+}
+
+.test-button {
+    background: #2196F3;
+    color: white;
+    margin-top: 15px;
+}
+
+.record-button:hover,
+.stop-button:hover,
+.test-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.record-button:disabled,
+.test-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.recording-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 20px 0;
+    font-weight: bold;
+    color: #f44336;
+}
+
+.pulse {
+    width: 12px;
+    height: 12px;
+    background: #f44336;
+    border-radius: 50%;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.5;
+        transform: scale(1.2);
+    }
+}
+
+.playback {
+    margin-top: 20px;
+}
+
+.playback audio {
+    width: 100%;
+    max-width: 400px;
+}
+
+.recorder-hint {
+    color: #888;
+    font-size: 0.9rem;
+    margin-top: 15px;
+}
+
+/* Loading */
+.loading {
+    text-align: center;
+    padding: 40px;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #2196F3;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Error */
+.error {
+    background: #ffebee;
+    color: #c62828;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+/* Results */
+.results-section {
+    background: #e8f5e9;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.results-section h2 {
+    margin-bottom: 15px;
+}
+
+.test-file {
+    font-size: 0.8rem;
+    color: #666;
+    font-weight: normal;
+}
+
+.results-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.result-item {
+    display: flex;
+    align-items: center;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.result-item.best-match {
+    background: #e8f5e9;
+    border-left: 4px solid #4CAF50;
+}
+
+.result-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.rank {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #2196F3;
+    width: 50px;
+}
+
+.song-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.title {
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.artist {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.scores {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.dtw-score {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.similarity {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #4CAF50;
+}
+
+/* Songs Database */
+.songs-section {
+    background: #fff3e0;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.songs-section h2 {
+    margin-bottom: 15px;
+}
+
+.songs-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.songs-list li {
+    padding: 10px;
+    border-bottom: 1px solid #ffe0b2;
+}
+
+.songs-list li:last-child {
+    border-bottom: none;
+}
