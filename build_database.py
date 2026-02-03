@@ -64,15 +64,15 @@ def extract_song_info(filepath: Path) -> dict:
         }
 
 
-def build_database(songs_dir: str = SONGS_DIR, force_rebuild: bool = False, use_demucs: bool = True):
+def build_database(songs_dir: str = SONGS_DIR, force_rebuild: bool = False):
     """
     Build the FAISS index from songs in the specified directory.
     Also extracts and stores chromagrams for DTW re-ranking.
+    Uses HPSS for harmonic/percussive separation (no Demucs).
     
     Args:
         songs_dir: Directory containing song files
         force_rebuild: If True, rebuild even if database exists
-        use_demucs: Whether to use Demucs for vocal isolation
     """
     # Create database directories
     os.makedirs(DATABASE_DIR, exist_ok=True)
@@ -93,7 +93,7 @@ def build_database(songs_dir: str = SONGS_DIR, force_rebuild: bool = False, use_
         return
     
     print(f"Found {len(song_files)} songs to process")
-    print(f"Using Demucs for vocal isolation: {use_demucs}")
+    print("Using HPSS for harmonic separation")
     
     # Process each song
     embeddings = []
@@ -103,11 +103,10 @@ def build_database(songs_dir: str = SONGS_DIR, force_rebuild: bool = False, use_
         print(f"[{i+1}/{len(song_files)}] Processing: {filepath.name}")
         
         try:
-            # Generate embedding with Demucs vocal isolation and key normalization
+            # Generate embedding with HPSS and key normalization
             embedding = generate_embedding(
                 str(filepath),
-                use_demucs=use_demucs,
-                use_hpss=True,  # Fallback if Demucs unavailable
+                use_hpss=True,
                 normalize_key=True,
                 target_median_pitch=60
             )
@@ -117,7 +116,6 @@ def build_database(songs_dir: str = SONGS_DIR, force_rebuild: bool = False, use_
             try:
                 chromagram = extract_chromagram(
                     str(filepath),
-                    use_demucs=use_demucs,
                     use_hpss=True
                 )
                 chroma_path = os.path.join(CHROMAGRAM_DIR, f"{filepath.stem}.npy")
@@ -220,8 +218,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build song database for QbH system")
     parser.add_argument("--songs-dir", default=SONGS_DIR, help="Directory containing songs")
     parser.add_argument("--force", action="store_true", help="Force rebuild of database")
-    parser.add_argument("--no-demucs", action="store_true", help="Disable Demucs vocal isolation (use HPSS instead)")
     
     args = parser.parse_args()
     
-    build_database(args.songs_dir, force_rebuild=args.force, use_demucs=not args.no_demucs)
+    build_database(args.songs_dir, force_rebuild=args.force)

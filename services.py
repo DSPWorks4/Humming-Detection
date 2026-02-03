@@ -208,7 +208,6 @@ def process_audio_embedding(audio_path: str, max_duration: float = 30.0) -> np.n
     """
     return generate_embedding(
         audio_path,
-        use_demucs=False,  # Humming doesn't need Demucs
         use_hpss=True,
         normalize_key=True,
         target_median_pitch=60,

@@ -1,7 +1,7 @@
 """
 Embedding Logic for Query-by-Humming System
 Uses basic-pitch to convert audio to MIDI notes, then creates a 128-D pitch histogram.
-Supports Demucs vocal isolation and key normalization.
+Uses HPSS for harmonic separation and key normalization.
 """
 
 import numpy as np
@@ -12,9 +12,6 @@ import tempfile
 import os
 import subprocess
 import shutil
-
-# Global flag to check if Demucs is available
-_DEMUCS_AVAILABLE = None
 
 # Formats that need conversion via ffmpeg
 _NEEDS_CONVERSION = {'.webm', '.ogg', '.opus', '.m4a', '.aac', '.wma'}
@@ -70,67 +67,6 @@ def convert_to_wav(audio_file: str) -> str:
         raise RuntimeError("ffmpeg conversion timed out")
 
 
-def is_demucs_available():
-    """Check if Demucs is installed and available."""
-    global _DEMUCS_AVAILABLE
-    if _DEMUCS_AVAILABLE is None:
-        try:
-            result = subprocess.run(
-                ['demucs', '--help'],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            _DEMUCS_AVAILABLE = result.returncode == 0
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            _DEMUCS_AVAILABLE = False
-    return _DEMUCS_AVAILABLE
-
-
-def isolate_vocals_demucs(audio_file: str, output_dir: str = None) -> str:
-    """
-    Use Demucs to isolate vocals from an audio file.
-    
-    Args:
-        audio_file: Path to the input audio file
-        output_dir: Optional output directory (uses temp dir if None)
-        
-    Returns:
-        Path to the isolated vocals audio file
-    """
-    if output_dir is None:
-        output_dir = tempfile.mkdtemp(prefix='demucs_')
-    
-    # Run Demucs with htdemucs_ft model (fine-tuned, better quality)
-    # Falls back to htdemucs if ft model not available
-    try:
-        subprocess.run(
-            [
-                'demucs',
-                '--two-stems', 'vocals',  # Only separate vocals/other
-                '-n', 'htdemucs',          # Use htdemucs model
-                '-o', output_dir,
-                audio_file
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=300  # 5 minute timeout
-        )
-    except subprocess.CalledProcessError as e:
-        print(f"Demucs error: {e.stderr}")
-        raise RuntimeError(f"Demucs failed: {e.stderr}")
-    
-    # Find the vocals file
-    audio_name = os.path.splitext(os.path.basename(audio_file))[0]
-    vocals_path = os.path.join(output_dir, 'htdemucs', audio_name, 'vocals.wav')
-    
-    if not os.path.exists(vocals_path):
-        raise RuntimeError(f"Demucs output not found at {vocals_path}")
-    
-    return vocals_path
-
-
 def normalize_pitch_to_median(note_events: list, target_median: int = 60) -> list:
     """
     Normalize note pitches so the median pitch equals the target.
@@ -176,7 +112,6 @@ def normalize_pitch_to_median(note_events: list, target_median: int = 60) -> lis
 
 def generate_embedding(
     audio_file: str,
-    use_demucs: bool = True,
     use_hpss: bool = True,
     normalize_key: bool = True,
     target_median_pitch: int = 60,
@@ -187,8 +122,7 @@ def generate_embedding(
     
     Args:
         audio_file: Path to the audio file (.wav, .mp3, .webm, etc.)
-        use_demucs: Whether to use Demucs for vocal isolation (recommended for songs)
-        use_hpss: Whether to apply HPSS (fallback if Demucs unavailable, good for humming)
+        use_hpss: Whether to apply HPSS for harmonic separation
         normalize_key: Whether to normalize pitch to a reference (key invariance)
         target_median_pitch: Target median MIDI pitch for normalization (default 60 = C4)
         max_duration: Maximum audio duration in seconds (for speed)
@@ -196,7 +130,6 @@ def generate_embedding(
     Returns:
         A normalized 128-dimensional numpy array representing pitch occurrences
     """
-    demucs_output_dir = None
     converted_file = None
     
     try:
@@ -207,21 +140,14 @@ def generate_embedding(
             converted_file = convert_to_wav(audio_file)
             audio_file = converted_file
         
-        # Step 1: Vocal isolation
-        if use_demucs and is_demucs_available():
-            print(f"  Using Demucs for vocal isolation...")
-            demucs_output_dir = tempfile.mkdtemp(prefix='demucs_')
-            vocals_path = isolate_vocals_demucs(audio_file, demucs_output_dir)
-            y, sr = librosa.load(vocals_path, sr=22050, mono=True, duration=max_duration)
-        else:
-            # Load audio directly (limit duration for speed)
-            y, sr = librosa.load(audio_file, sr=22050, mono=True, duration=max_duration)
-            
-            # Apply HPSS if requested (fallback for vocal isolation)
-            if use_hpss:
-                print(f"  Using HPSS for harmonic separation...")
-                y_harmonic, _ = librosa.effects.hpss(y)
-                y = y_harmonic
+        # Step 1: Load audio
+        y, sr = librosa.load(audio_file, sr=22050, mono=True, duration=max_duration)
+        
+        # Apply HPSS if requested
+        if use_hpss:
+            print(f"  Using HPSS for harmonic separation...")
+            y_harmonic, _ = librosa.effects.hpss(y)
+            y = y_harmonic
         
         # Trim silence
         y, _ = librosa.effects.trim(y, top_db=20)
@@ -268,9 +194,6 @@ def generate_embedding(
         return histogram.astype(np.float32)
         
     finally:
-        # Cleanup Demucs temp directory
-        if demucs_output_dir and os.path.exists(demucs_output_dir):
-            shutil.rmtree(demucs_output_dir, ignore_errors=True)
         # Cleanup converted temp file
         if converted_file and os.path.exists(converted_file):
             os.unlink(converted_file)
@@ -345,21 +268,19 @@ def generate_embedding_from_array(
     return histogram.astype(np.float32)
 
 
-def extract_chromagram(audio_file: str, use_demucs: bool = True, use_hpss: bool = True) -> np.ndarray:
+def extract_chromagram(audio_file: str, use_hpss: bool = True) -> np.ndarray:
     """
     Extract chromagram from an audio file for DTW re-ranking.
     
     Args:
         audio_file: Path to the audio file
-        use_demucs: Whether to use Demucs for vocal isolation
-        use_hpss: Whether to apply HPSS (fallback)
+        use_hpss: Whether to apply HPSS for harmonic separation
         
     Returns:
         Chromagram numpy array of shape (12, T)
     """
     import scipy.ndimage
     
-    demucs_output_dir = None
     converted_file = None
     
     try:
@@ -369,16 +290,13 @@ def extract_chromagram(audio_file: str, use_demucs: bool = True, use_hpss: bool 
             converted_file = convert_to_wav(audio_file)
             audio_file = converted_file
         
-        # Vocal isolation
-        if use_demucs and is_demucs_available():
-            demucs_output_dir = tempfile.mkdtemp(prefix='demucs_')
-            vocals_path = isolate_vocals_demucs(audio_file, demucs_output_dir)
-            y, sr = librosa.load(vocals_path, sr=22050, mono=True)
-        else:
-            y, sr = librosa.load(audio_file, sr=22050, mono=True)
-            if use_hpss:
-                y_harmonic, _ = librosa.effects.hpss(y)
-                y = y_harmonic
+        # Load audio
+        y, sr = librosa.load(audio_file, sr=22050, mono=True)
+        
+        # Apply HPSS if requested
+        if use_hpss:
+            y_harmonic, _ = librosa.effects.hpss(y)
+            y = y_harmonic
         
         # Trim silence
         y, _ = librosa.effects.trim(y, top_db=20)
@@ -392,8 +310,6 @@ def extract_chromagram(audio_file: str, use_demucs: bool = True, use_hpss: bool 
         return chromagram
         
     finally:
-        if demucs_output_dir and os.path.exists(demucs_output_dir):
-            shutil.rmtree(demucs_output_dir, ignore_errors=True)
         if converted_file and os.path.exists(converted_file):
             os.unlink(converted_file)
 
