@@ -223,3 +223,16 @@ While Deep Learning is powerful, adapting it for humming recognition involves so
 - **Timbre Independence**: The model must learn to ignore the texture difference between a human voice and instruments.
 
 - **Data Requirements**: Training such a model requires a massive dataset of paired hums and songs, whereas our current algorithmic approach works with zero training data.
+- 
+### Proposed Datasets & Solutions
+To address the data and robustness challenges outlined above, we will utilize the following resources and strategies:
+
+- Primary Dataset (CHAD): We will use the Covers and Hummings Aligned Dataset (CHAD), which provides aligned pairs of original recordings and human humming, specifically designed for metric learning tasks.
+
+- Benchmark Dataset: We will validate performance using the MIR-QbSH corpus.
+
+#### Data Augmentation Strategy:
+
+- Pitch Shifting: We will generate multiple variants of training samples (shifting ±1 and ±2 semitones) to force the model to learn relative pitch intervals rather than absolute frequencies.
+
+- Vocal Synthesis: To solve data scarcity, we will generate synthetic "hums" from MIDI files using tools like Synthesizer V, helping the model learn to bridge the gap between instrumental and vocal timbres.

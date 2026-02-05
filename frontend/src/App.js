@@ -11,7 +11,21 @@ function App() {
     const [songs, setSongs] = useState([]);
     const [testFile, setTestFile] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
+
+    // Default to TRUE for Dark Mode
+    const [darkMode, setDarkMode] = useState(() => {
+        const saved = localStorage.getItem('darkMode');
+        return saved !== null ? saved === 'true' : true;
+    });
+
     const fileInputRef = useRef(null);
+
+    // Save dark mode preference & Apply Theme
+    useEffect(() => {
+        localStorage.setItem('darkMode', darkMode);
+        // We set the attribute on the body for global styling
+        document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    }, [darkMode]);
 
     // Fetch available songs on mount
     useEffect(() => {
@@ -68,10 +82,7 @@ function App() {
                 setTestFile(data.test_file);
                 if (data.found) {
                     setResults(data.matches);
-                    console.log('Random test file matched:', data.test_file);
                 } else {
-                    console.log('Random test - No match for:', data.test_file);
-                    console.log('Best score:', data.best_score, 'Threshold:', data.threshold);
                     setError('No match has been found');
                     setResults([]);
                 }
@@ -127,7 +138,6 @@ function App() {
         } finally {
             setIsLoading(false);
             setSelectedFile(null);
-            // Reset file input
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
             }
@@ -137,8 +147,19 @@ function App() {
     return (
         <div className="App">
             <header className="App-header">
-                <h1>🎵 Hum-to-Search</h1>
-                <p>Hum a tune and find the song!</p>
+                <div className="header-content">
+                    <div className="header-title">
+                        <h1>🎵 Hum-to-Search</h1>
+                        <p>Discover music with your voice</p>
+                    </div>
+                    <button
+                        className="theme-toggle"
+                        onClick={() => setDarkMode(!darkMode)}
+                        aria-label="Toggle Theme"
+                    >
+                        {darkMode ? '☀️' : '🌙'}
+                    </button>
+                </div>
             </header>
 
             <main>
@@ -146,7 +167,7 @@ function App() {
                     <Recorder onRecordingComplete={handleRecordingComplete} />
 
                     <div className="divider">
-                        <span>OR</span>
+                        <span>or upload file</span>
                     </div>
 
                     <div className="upload-section">
@@ -159,24 +180,26 @@ function App() {
                             ref={fileInputRef}
                         />
                         <label htmlFor="file-upload" className="file-label">
-                            📁 {selectedFile ? selectedFile.name : 'Choose Audio File'}
+                            {selectedFile ? (
+                                <>📄 {selectedFile.name}</>
+                            ) : (
+                                <>📁 Select Audio File</>
+                            )}
                         </label>
                         <button
                             onClick={handleFileUpload}
                             disabled={!selectedFile || isLoading}
                             className="upload-button"
                         >
-                            Upload & Search
+                            Analyze File
                         </button>
-                    </div>
 
-                    <div className="test-section">
                         <button
                             onClick={handleRandomTest}
                             disabled={isLoading}
                             className="test-button"
                         >
-                            Random Test
+                            🎲 Run Random Test
                         </button>
                     </div>
                 </section>
@@ -184,30 +207,33 @@ function App() {
                 {isLoading && (
                     <div className="loading">
                         <div className="spinner"></div>
-                        <p>Processing audio...</p>
+                        <p>Listening & Analyzing...</p>
                     </div>
                 )}
 
                 {error && (
                     <div className="error">
-                        <p>❌ {error}</p>
+                        <p>{error}</p>
                     </div>
                 )}
 
                 {results.length > 0 && (
                     <section className="results-section">
-                        <h2>Results {testFile && <span className="test-file">(Test: {testFile})</span>}</h2>
+                        <h2>
+                            Match Results
+                            {testFile && <span style={{ fontSize: '0.8rem', opacity: 0.7, marginLeft: '10px' }}> (Test: {testFile})</span>}
+                        </h2>
                         <ul className="results-list">
                             {results.map((match, index) => (
                                 <li key={index} className={`result-item ${index === 0 ? 'best-match' : ''}`}>
-                                    <span className="rank">#{match.rank}</span>
+                                    <span className="rank">{index + 1}</span>
                                     <div className="song-info">
                                         <span className="title">{match.title}</span>
                                         <span className="artist">{match.artist}</span>
                                     </div>
                                     <div className="scores">
-                                        <span className="dtw-score">DTW: {match.dtw_score}</span>
                                         <span className="similarity">{match.similarity}%</span>
+                                        <span className="dtw-score">Distance: {match.dtw_score}</span>
                                     </div>
                                 </li>
                             ))}
@@ -216,11 +242,11 @@ function App() {
                 )}
 
                 <section className="songs-section">
-                    <h2>📚 Database ({songs.length} songs)</h2>
+                    <h2>📚 Database Index ({songs.length})</h2>
                     <ul className="songs-list">
                         {songs.map((song) => (
                             <li key={song.id}>
-                                <strong>{song.title}</strong> — {song.artist}
+                                <strong>{song.title}</strong> · {song.artist}
                             </li>
                         ))}
                     </ul>

@@ -15,7 +15,6 @@ const Recorder = ({ onRecordingComplete }) => {
 
     useEffect(() => {
         return () => {
-            // Cleanup on unmount
             if (timerRef.current) clearInterval(timerRef.current);
             if (streamRef.current) {
                 streamRef.current.getTracks().forEach(track => track.stop());
@@ -54,17 +53,14 @@ const Recorder = ({ onRecordingComplete }) => {
                 setAudioURL(url);
                 setHasRecorded(true);
                 onRecordingComplete(blob);
-
-                // Stop all tracks
                 stream.getTracks().forEach(track => track.stop());
             };
 
-            mediaRecorder.start(100); // Collect data every 100ms
+            mediaRecorder.start(100);
             setIsRecording(true);
             setRecordingTime(0);
             setAudioURL(null);
 
-            // Start timer
             timerRef.current = setInterval(() => {
                 setRecordingTime(prev => {
                     if (prev >= MAX_RECORDING_TIME - 1) {
@@ -101,6 +97,7 @@ const Recorder = ({ onRecordingComplete }) => {
         setHasRecorded(false);
         setRecordingTime(0);
         chunksRef.current = [];
+        // Optional: auto-start immediately? better to let user click again.
     };
 
     const formatTime = (seconds) => {
@@ -111,25 +108,31 @@ const Recorder = ({ onRecordingComplete }) => {
         <div className="recorder">
             <div className="recorder-controls">
                 {!isRecording && !hasRecorded ? (
-                    <button onClick={startRecording} className="record-button">
-                        🎤 Start Recording
+                    <button onClick={startRecording} className="record-button" title="Start Recording">
+                        🎙️
                     </button>
                 ) : isRecording ? (
-                    <button onClick={stopRecording} className="stop-button">
-                        ⏹️ Stop Recording
+                    <button onClick={stopRecording} className="stop-button" title="Stop Recording">
+                        ⏹
                     </button>
                 ) : (
-                    <button onClick={resetRecording} className="record-button">
-                        🎤 Record Again
+                    <button onClick={startRecording} className="record-button" title="Record Again">
+                        🔄
                     </button>
                 )}
             </div>
 
-            {isRecording && (
+            {isRecording ? (
                 <div className="recording-indicator">
-                    <div className="pulse"></div>
-                    <span>Recording: {formatTime(recordingTime)} / {formatTime(MAX_RECORDING_TIME)}</span>
+                    <div className="pulse-dot"></div>
+                    <span>{formatTime(recordingTime)} / {formatTime(MAX_RECORDING_TIME)}</span>
                 </div>
+            ) : hasRecorded ? (
+                <p className="recorder-hint">Analysis Complete</p>
+            ) : (
+                <p className="recorder-hint">
+                    Tap the mic and hum for 10-30 seconds
+                </p>
             )}
 
             {audioURL && (
@@ -137,10 +140,6 @@ const Recorder = ({ onRecordingComplete }) => {
                     <audio controls src={audioURL} />
                 </div>
             )}
-
-            <p className="recorder-hint">
-                Hum for 10-30 seconds for best results
-            </p>
         </div>
     );
 };

@@ -1,62 +1,185 @@
+/* Modern Reset & Variables */
+:root {
+    /* Dark Mode (Default) - "Magma" Theme */
+    --bg-app: #050505;
+    /* Pure Black/Deepest Charcoal */
+    --bg-surface: rgba(24, 24, 27, 0.7);
+    /* Glassy Carbon */
+    --bg-surface-hover: rgba(39, 39, 42, 0.8);
+    --border-color: rgba(255, 69, 0, 0.2);
+    /* Subtle Red Border */
+
+    /* Gradients */
+    --primary-gradient: linear-gradient(135deg, #ff4d00 0%, #ff0000 100%);
+    /* Orange to Red */
+    --secondary-gradient: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    /* Bright Orange */
+    --danger-gradient: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+    /* Deep Red */
+
+    /* Text */
+    --text-main: #fafafa;
+    --text-muted: #a1a1aa;
+    --text-accent: #fb923c;
+    /* Light Orange */
+
+    /* Effects */
+    --shadow-glow: 0 0 25px rgba(255, 69, 0, 0.25);
+    /* Orange Glow */
+    --shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+
+    --radius-lg: 24px;
+    --radius-md: 16px;
+    --radius-sm: 8px;
+}
+
+/* Light Mode Override */
+[data-theme='light'] {
+    --bg-app: #fff7ed;
+    /* Very light orange tint */
+    --bg-surface: rgba(255, 255, 255, 0.8);
+    --bg-surface-hover: #ffffff;
+    --border-color: rgba(251, 146, 60, 0.3);
+    --text-main: #1c1917;
+    --text-muted: #57534e;
+    --text-accent: #ea580c;
+    --shadow-glow: 0 4px 20px rgba(234, 88, 12, 0.15);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-app);
+    color: var(--text-main);
+    transition: background-color 0.3s ease, color 0.3s ease;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* Layout */
 .App {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-bottom: 40px;
 }
 
+/* Modern Header */
 .App-header {
-    text-align: center;
-    margin-bottom: 40px;
+    width: 100%;
+    padding: 2rem 1.5rem;
+    display: flex;
+    justify-content: center;
+    /* Red/Orange glow at the top */
+    background: radial-gradient(circle at top, rgba(255, 69, 0, 0.15), transparent 70%);
 }
 
-.App-header h1 {
+.header-content {
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-title h1 {
     font-size: 2.5rem;
-    margin-bottom: 10px;
+    font-weight: 800;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.05em;
+    filter: drop-shadow(0 0 10px rgba(255, 69, 0, 0.3));
 }
 
-.App-header p {
-    color: #666;
-    font-size: 1.1rem;
+.header-title p {
+    color: var(--text-muted);
+    font-weight: 500;
 }
 
-/* Recorder Section */
-.recorder-section {
-    background: #f8f9fa;
-    border-radius: 12px;
-    padding: 30px;
-    margin-bottom: 30px;
-    text-align: center;
+.theme-toggle {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+    color: var(--text-accent);
+}
+
+.theme-toggle:hover {
+    transform: translateY(-2px);
+    background: var(--bg-surface-hover);
+    box-shadow: var(--shadow-glow);
+    border-color: var(--text-accent);
+}
+
+/* Main Container */
+main {
+    width: 100%;
+    max-width: 600px;
+    padding: 0 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* Glass Card Style */
+.recorder-section,
+.results-section,
+.songs-section {
+    background: var(--bg-surface);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    box-shadow: var(--shadow-card);
 }
 
 /* Divider */
 .divider {
-    margin: 25px 0;
     display: flex;
     align-items: center;
     text-align: center;
+    margin: 2rem 0;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
 }
 
 .divider::before,
 .divider::after {
     content: '';
     flex: 1;
-    border-bottom: 2px solid #ddd;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .divider span {
-    padding: 0 15px;
-    color: #888;
-    font-weight: bold;
+    padding: 0 1rem;
+    color: var(--text-accent);
 }
 
-/* Upload Section */
+/* File Upload Styles */
 .upload-section {
-    margin: 20px 0;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    align-items: center;
+    gap: 1rem;
 }
 
 .file-input {
@@ -64,281 +187,312 @@
 }
 
 .file-label {
-    padding: 12px 25px;
-    background: #fff;
-    border: 2px dashed #2196F3;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s;
-    font-size: 1rem;
-    color: #333;
-    max-width: 400px;
-    width: 100%;
+    display: block;
+    padding: 1rem;
+    border: 2px dashed var(--border-color);
+    border-radius: var(--radius-md);
     text-align: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.2s;
 }
 
 .file-label:hover {
-    background: #e3f2fd;
-    border-color: #1976D2;
+    border-color: #ff4500;
+    color: var(--text-accent);
+    background: rgba(255, 69, 0, 0.05);
+    box-shadow: var(--shadow-glow);
+}
+
+/* Buttons */
+button.upload-button,
+button.test-button {
+    width: 100%;
+    padding: 1rem;
+    border: none;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    color: white;
+    /* Ensure text is white on orange/red buttons */
 }
 
 .upload-button {
-    padding: 15px 30px;
-    font-size: 1.1rem;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-    background: #FF9800;
-    color: white;
+    background: var(--secondary-gradient);
 }
 
-.upload-button:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+.test-button {
+    background: var(--bg-surface-hover);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    margin-top: 1rem;
+}
+
+.test-button:hover {
+    border-color: var(--text-accent);
+    color: var(--text-accent);
 }
 
 .upload-button:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
-    transform: none;
+    filter: grayscale(0.5);
 }
 
+.upload-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(255, 140, 0, 0.4);
+    /* Orange shadow */
+}
+
+/* Recorder Specifics */
 .recorder-controls {
-    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.5rem;
 }
 
 .record-button,
-.stop-button,
-.test-button {
-    padding: 15px 30px;
-    font-size: 1.1rem;
+.stop-button {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
     border: none;
-    border-radius: 8px;
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05);
 }
 
 .record-button {
-    background: #4CAF50;
+    background: var(--primary-gradient);
     color: white;
 }
 
 .stop-button {
-    background: #f44336;
+    background: var(--danger-gradient);
+    /* Dark Red */
     color: white;
+    animation: pulse-ring 2s infinite;
 }
 
-.test-button {
-    background: #2196F3;
-    color: white;
-    margin-top: 15px;
+.record-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 25px rgba(255, 69, 0, 0.5);
+    /* Intense Red/Orange Glow */
 }
 
-.record-button:hover,
-.stop-button:hover,
-.test-button:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
+@keyframes pulse-ring {
+    0% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+    }
 
-.record-button:disabled,
-.test-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
+    70% {
+        box-shadow: 0 0 0 15px rgba(220, 38, 38, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+    }
 }
 
 .recording-indicator {
+    text-align: center;
+    color: #ff4500;
+    /* Red-Orange */
+    font-weight: 600;
+    margin: 1rem 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    margin: 20px 0;
-    font-weight: bold;
-    color: #f44336;
+    gap: 0.5rem;
 }
 
-.pulse {
-    width: 12px;
-    height: 12px;
-    background: #f44336;
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #ff0000;
     border-radius: 50%;
-    animation: pulse 1s infinite;
+    box-shadow: 0 0 10px #ff0000;
+    animation: blink 1s infinite;
 }
 
-@keyframes pulse {
-
-    0%,
-    100% {
-        opacity: 1;
-        transform: scale(1);
-    }
-
+@keyframes blink {
     50% {
-        opacity: 0.5;
-        transform: scale(1.2);
+        opacity: 0;
     }
 }
 
-.playback {
-    margin-top: 20px;
+.recorder-hint {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-top: 1rem;
 }
 
 .playback audio {
     width: 100%;
-    max-width: 400px;
-}
-
-.recorder-hint {
-    color: #888;
-    font-size: 0.9rem;
-    margin-top: 15px;
-}
-
-/* Loading */
-.loading {
-    text-align: center;
-    padding: 40px;
-}
-
-.spinner {
-    width: 50px;
-    height: 50px;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #2196F3;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 20px;
-}
-
-@keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
-}
-
-/* Error */
-.error {
-    background: #ffebee;
-    color: #c62828;
-    padding: 15px;
+    margin-top: 1rem;
     border-radius: 8px;
-    margin: 20px 0;
+    filter: invert(0.9);
+    /* Invert audio player colors for dark mode aesthetics */
+}
+
+[data-theme="light"] .playback audio {
+    filter: none;
 }
 
 /* Results */
-.results-section {
-    background: #e8f5e9;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 30px;
-}
-
 .results-section h2 {
-    margin-bottom: 15px;
-}
-
-.test-file {
-    font-size: 0.8rem;
-    color: #666;
-    font-weight: normal;
+    font-size: 1.25rem;
+    margin-bottom: 1.5rem;
 }
 
 .results-list {
     list-style: none;
-    padding: 0;
-    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
 .result-item {
     display: flex;
     align-items: center;
-    background: white;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 10px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.result-item.best-match {
-    background: #e8f5e9;
-    border-left: 4px solid #4CAF50;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    transition: all 0.2s;
 }
 
 .result-item:hover {
+    background: rgba(255, 69, 0, 0.08);
+    /* Slight orange tint on hover */
     transform: translateX(5px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    border-color: #ff4500;
+}
+
+.result-item.best-match {
+    border-color: #ff4500;
+    background: linear-gradient(90deg, rgba(255, 69, 0, 0.15) 0%, transparent 100%);
 }
 
 .rank {
     font-size: 1.5rem;
-    font-weight: bold;
-    color: #2196F3;
-    width: 50px;
+    font-weight: 800;
+    color: var(--text-muted);
+    margin-right: 1rem;
+    width: 30px;
+}
+
+.best-match .rank {
+    color: #ff4500;
+    /* Bright Red-Orange */
 }
 
 .song-info {
     flex: 1;
-    display: flex;
-    flex-direction: column;
 }
 
-.title {
-    font-weight: bold;
+.song-info .title {
+    display: block;
+    font-weight: 700;
     font-size: 1.1rem;
 }
 
-.artist {
-    color: #666;
+.song-info .artist {
+    color: var(--text-muted);
     font-size: 0.9rem;
 }
 
 .scores {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
-}
-
-.dtw-score {
-    font-size: 0.85rem;
-    color: #666;
+    text-align: right;
 }
 
 .similarity {
-    font-size: 1.1rem;
-    font-weight: bold;
-    color: #4CAF50;
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 800;
+    background: var(--primary-gradient);
+    /* Gradient Text */
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
-/* Songs Database */
-.songs-section {
-    background: #fff3e0;
-    border-radius: 12px;
-    padding: 20px;
+.dtw-score {
+    font-size: 0.75rem;
+    color: var(--text-muted);
 }
 
+/* Database List */
 .songs-section h2 {
-    margin-bottom: 15px;
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    color: var(--text-muted);
 }
 
 .songs-list {
     list-style: none;
-    padding: 0;
-    margin: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+/* Custom Scrollbar */
+.songs-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.songs-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 69, 0, 0.3);
+    border-radius: 3px;
 }
 
 .songs-list li {
-    padding: 10px;
-    border-bottom: 1px solid #ffe0b2;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-muted);
+    font-size: 0.9rem;
 }
 
-.songs-list li:last-child {
-    border-bottom: none;
+.songs-list li strong {
+    color: var(--text-main);
+}
+
+/* Loading & Error */
+.loading {
+    text-align: center;
+    color: var(--text-accent);
+    padding: 2rem;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 69, 0, 0.1);
+    border-top-color: #ff4500;
+    border-radius: 50%;
+    margin: 0 auto 1rem;
+    animation: spin 1s linear infinite;
+    box-shadow: 0 0 15px rgba(255, 69, 0, 0.2);
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.error {
+    background: rgba(220, 38, 38, 0.15);
+    border: 1px solid rgba(220, 38, 38, 0.4);
+    color: #fca5a5;
+    padding: 1rem;
+    border-radius: var(--radius-md);
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.1);
 }
