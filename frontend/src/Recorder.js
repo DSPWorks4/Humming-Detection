@@ -4,6 +4,7 @@ const Recorder = ({ onRecordingComplete }) => {
     const [isRecording, setIsRecording] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
     const [audioURL, setAudioURL] = useState(null);
+    const [hasRecorded, setHasRecorded] = useState(false);
 
     const mediaRecorderRef = useRef(null);
     const chunksRef = useRef([]);
@@ -51,6 +52,7 @@ const Recorder = ({ onRecordingComplete }) => {
                 const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
                 const url = URL.createObjectURL(blob);
                 setAudioURL(url);
+                setHasRecorded(true);
                 onRecordingComplete(blob);
 
                 // Stop all tracks
@@ -91,6 +93,16 @@ const Recorder = ({ onRecordingComplete }) => {
         }
     };
 
+    const resetRecording = () => {
+        if (audioURL) {
+            URL.revokeObjectURL(audioURL);
+        }
+        setAudioURL(null);
+        setHasRecorded(false);
+        setRecordingTime(0);
+        chunksRef.current = [];
+    };
+
     const formatTime = (seconds) => {
         return `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`;
     };
@@ -98,13 +110,17 @@ const Recorder = ({ onRecordingComplete }) => {
     return (
         <div className="recorder">
             <div className="recorder-controls">
-                {!isRecording ? (
+                {!isRecording && !hasRecorded ? (
                     <button onClick={startRecording} className="record-button">
                         🎤 Start Recording
                     </button>
-                ) : (
+                ) : isRecording ? (
                     <button onClick={stopRecording} className="stop-button">
                         ⏹️ Stop Recording
+                    </button>
+                ) : (
+                    <button onClick={resetRecording} className="record-button">
+                        🎤 Record Again
                     </button>
                 )}
             </div>

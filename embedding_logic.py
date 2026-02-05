@@ -30,14 +30,22 @@ def isolate_vocals_demucs(audio_file: str, output_dir: str = None) -> str:
     Use Demucs to isolate vocals from an audio file.
         
     Returns:
-        Path to the isolated vocals audio file
+        Path to the converted WAV file (temp file)
     """
-    if output_dir is None:
-        output_dir = tempfile.mkdtemp(prefix='demucs_')
+    ext = os.path.splitext(audio_file)[1].lower()
+    
+    # If already a supported format, return as-is
+    if ext in {'.wav', '.mp3', '.flac'}:
+        return audio_file
+    
+    # Create temp WAV file
+    tmp_wav = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+    tmp_wav.close()
     
     # Run Demucs with htdemucs_ft model (fine-tuned, better quality)
     try:
-        subprocess.run(
+        # Use ffmpeg to convert
+        result = subprocess.run(
             [
                 'demucs',
                 '--two-stems', 'vocals',  
@@ -50,18 +58,19 @@ def isolate_vocals_demucs(audio_file: str, output_dir: str = None) -> str:
             check=True,
             timeout=600  # 10 minute timeout
         )
-    except subprocess.CalledProcessError as e:
-        print(f"Demucs error: {e.stderr}")
-        raise RuntimeError(f"Demucs failed: {e.stderr}")
-    
-    # Find the vocals file
-    audio_name = os.path.splitext(os.path.basename(audio_file))[0]
-    vocals_path = os.path.join(output_dir, 'htdemucs', audio_name, 'vocals.wav')
-    
-    if not os.path.exists(vocals_path):
-        raise RuntimeError(f"Demucs output not found at {vocals_path}")
-    
-    return vocals_path
+        
+        if result.returncode != 0:
+            os.unlink(tmp_wav.name)
+            raise RuntimeError(f"ffmpeg conversion failed: {result.stderr}")
+        
+        return tmp_wav.name
+        
+    except FileNotFoundError:
+        os.unlink(tmp_wav.name)
+        raise RuntimeError("ffmpeg not found. Please install ffmpeg to process webm files.")
+    except subprocess.TimeoutExpired:
+        os.unlink(tmp_wav.name)
+        raise RuntimeError("ffmpeg conversion timed out")
 
 def normalize_pitch_to_median(note_events: list, target_median: int = 60) -> list:
     """
@@ -101,7 +110,6 @@ def normalize_pitch_to_median(note_events: list, target_median: int = 60) -> lis
 
 def generate_embedding(
     audio_file: str,
-    use_demucs: bool = True,
     use_hpss: bool = True,
     normalize_key: bool = True,
     target_median_pitch: int = 60,
@@ -113,7 +121,7 @@ def generate_embedding(
     Returns:
         A normalized 128-dimensional numpy array representing pitch occurrences
     """
-    demucs_output_dir = None
+    converted_file = None
     
     try:
         # Vocal isolation
@@ -244,19 +252,22 @@ def extract_chromagram(audio_file: str, use_demucs: bool = True, use_hpss: bool 
     """
     import scipy.ndimage
     
-    demucs_output_dir = None
+    converted_file = None
     
     try:
-        # Vocal isolation
-        if use_demucs and is_demucs_available():
-            demucs_output_dir = tempfile.mkdtemp(prefix='demucs_')
-            vocals_path = isolate_vocals_demucs(audio_file, demucs_output_dir)
-            y, sr = librosa.load(vocals_path, sr=22050, mono=True)
-        else:
-            y, sr = librosa.load(audio_file, sr=22050, mono=True)
-            if use_hpss:
-                y_harmonic, _ = librosa.effects.hpss(y)
-                y = y_harmonic
+        # Convert unsupported formats (webm, etc.) to wav
+        ext = os.path.splitext(audio_file)[1].lower()
+        if ext in _NEEDS_CONVERSION:
+            converted_file = convert_to_wav(audio_file)
+            audio_file = converted_file
+        
+        # Load audio
+        y, sr = librosa.load(audio_file, sr=22050, mono=True)
+        
+        # Apply HPSS if requested
+        if use_hpss:
+            y_harmonic, _ = librosa.effects.hpss(y)
+            y = y_harmonic
         
         # Trim silence
         y, _ = librosa.effects.trim(y, top_db=20)
@@ -270,8 +281,8 @@ def extract_chromagram(audio_file: str, use_demucs: bool = True, use_hpss: bool 
         return chromagram
         
     finally:
-        if demucs_output_dir and os.path.exists(demucs_output_dir):
-            shutil.rmtree(demucs_output_dir, ignore_errors=True)
+        if converted_file and os.path.exists(converted_file):
+            os.unlink(converted_file)
 
 def extract_chromagram_from_array(y: np.ndarray, sr: int = 22050, use_hpss: bool = True) -> np.ndarray:
     """
