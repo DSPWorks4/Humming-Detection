@@ -1,8 +1,3 @@
-"""
-Flask Backend for Query-by-Humming Web Application
-With DTW re-ranking for improved accuracy.
-"""
-
 import os
 import tempfile
 from flask import Flask, request, jsonify
@@ -24,7 +19,6 @@ def health_check():
         "database_loaded": is_database_loaded(),
         "songs_count": faiss_index.ntotal if faiss_index else 0
     })
-
 
 @app.route('/songs', methods=['GET'])
 def get_songs():
@@ -51,7 +45,6 @@ def get_songs():
         "total": len(songs)
     })
 
-
 @app.route('/upload', methods=['POST'])
 def upload_audio():
     """
@@ -64,7 +57,6 @@ def upload_audio():
             "error": "Database not initialized. Please run build_database.py first."
         }), 503
     
-    # Check if audio file is present
     if 'audio' not in request.files:
         return jsonify({"error": "No audio file provided"}), 400
     
@@ -75,9 +67,8 @@ def upload_audio():
     
     _, ext = os.path.splitext(audio_file.filename)
     if not ext:
-        ext = '.webm'  # Default for browser recordings
+        ext = '.webm'  
     
-    # Save to temporary file
     with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
         tmp_path = tmp.name
         audio_file.save(tmp_path)
@@ -100,7 +91,6 @@ def upload_audio():
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
-
 @app.route('/test-random', methods=['GET'])
 def test_random():
     """
@@ -120,7 +110,6 @@ def test_random():
     if not test_files:
         return jsonify({"error": "No test files found"}), 404
     
-    # Pick random file
     test_file = random.choice(test_files)
     
     try:

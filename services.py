@@ -1,24 +1,16 @@
 import numpy as np
 import librosa
-import scipy.ndimage
 import os
-
 from embedding_logic import generate_embedding, extract_chromagram_from_array
-from build_database import load_database, search, METADATA_FILE, CHROMAGRAM_DIR
+from build_database import load_database, search
 
-# Module-level state
 _faiss_index = None
 _metadata = None
 
-# Weighted Scoring Configuration
-# These weights determine the contribution of each metric to the final score
-EMBEDDING_WEIGHT = 0.6  # Higher weight = embeddings more important
-DTW_WEIGHT = 0.4        # Higher weight = DTW more important
+EMBEDDING_WEIGHT = 0.6  
+DTW_WEIGHT = 0.4        
 
-# Final match threshold (0-1 scale, higher = stricter)
 MATCH_THRESHOLD = 0.65  # Tuned to reduce false positives
-
-# Legacy thresholds (kept for backwards compatibility)
 SIMILARITY_THRESHOLD = 0.4  
 DTW_THRESHOLD = 0.2         
 
@@ -88,17 +80,15 @@ def dtw_rerank(
     results = []
     
     for meta, faiss_score in candidates:
-        # Load song chromagram
         chroma_path = meta.get("chromagram_path")
         if not chroma_path or not os.path.exists(chroma_path):
-            # Fall back to FAISS score if no chromagram
             results.append((meta, float('inf'), faiss_score))
             continue
         
         try:
             song_chroma = np.load(chroma_path)
             
-            # Test all 12 semitone shifts for key invariance
+            # Brute force 12 semitone shifts for key invariance
             best_dtw = float('inf')
             for shift in range(12):
                 shifted_query = np.roll(query_chroma, shift, axis=0)
@@ -125,17 +115,11 @@ def compute_weighted_score(
     """
     Compute weighted combined score from embedding similarity and DTW.
     
-    Args:
-        embedding_similarity: FAISS similarity score (0-1, higher is better)
-        dtw_score: DTW distance (lower is better, typically 0-0.5)
-        embedding_weight: Weight for embedding score (default 0.6)
-        dtw_weight: Weight for DTW score (default 0.4)
-    
     Returns:
         Combined score (0-1, higher is better)
     """
-    # Normalize DTW score to 0-1 range (invert so higher is better)
-    # Assume DTW scores typically range from 0 to 0.5
+
+    # Assumed DTW scores typically range from 0 to 0.5
     dtw_normalized = max(0.0, min(1.0, 1.0 - (dtw_score / 0.5)))
     
     # Weighted combination
@@ -153,9 +137,6 @@ def rerank_with_weighted_score(
 ) -> list:
     """
     Re-rank candidates using weighted score combining embedding + DTW.
-    
-    Args:
-        candidates: List of (metadata, dtw_score, faiss_score) tuples
         
     Returns:
         Re-ranked list sorted by weighted score (highest first)
@@ -169,7 +150,7 @@ def rerank_with_weighted_score(
         )
         scored_candidates.append((meta, dtw_score, faiss_score, weighted_score))
     
-    # Sort by weighted score (descending - higher is better)
+    # Higher is better
     scored_candidates.sort(key=lambda x: x[3], reverse=True)
     
     return scored_candidates
@@ -184,16 +165,13 @@ def init_database():
     else:
         print(f"Database loaded: {_faiss_index.ntotal} songs indexed")
 
-
 def get_faiss_index():
     """Get the FAISS index."""
     return _faiss_index
 
-
 def get_metadata():
     """Get the metadata list."""
     return _metadata
-
 
 def is_database_loaded() -> bool:
     """Check if database is loaded."""
@@ -208,7 +186,7 @@ def process_audio_embedding(audio_path: str, max_duration: float = 30.0) -> np.n
     """
     return generate_embedding(
         audio_path,
-        use_demucs=False,  # Humming doesn't need Demucs
+        use_demucs=False,  
         use_hpss=True,
         normalize_key=True,
         target_median_pitch=60,
@@ -277,7 +255,7 @@ def process_audio_query(
     audio_path: str,
     k: int = 5,
     similarity_threshold: float = SIMILARITY_THRESHOLD,
-    dtw_threshold: float = None,  # Optional, uses weighted scoring if None
+    dtw_threshold: float = None,  
     match_threshold: float = MATCH_THRESHOLD,
     embedding_weight: float = EMBEDDING_WEIGHT,
     dtw_weight: float = DTW_WEIGHT,
@@ -286,11 +264,7 @@ def process_audio_query(
 ) -> dict:
     """
     Full audio query processing pipeline with weighted scoring.
-    
-    Args:
-        use_weighted_scoring: If True, use weighted combination of scores.
-                              If False, use legacy threshold-based approach.
-        
+  
     Returns:
         Dictionary with match results
     """
@@ -318,16 +292,13 @@ def process_audio_query(
     
     # STAGE 3: Apply weighted scoring or threshold-based decision
     if use_weighted_scoring:
-        # Use weighted score combining embedding + DTW
         weighted_reranked = rerank_with_weighted_score(
             reranked, embedding_weight, dtw_weight
         )
         
-        # Check if best match passes weighted threshold
         best_weighted_score = weighted_reranked[0][3] if weighted_reranked else 0.0
         found_match = bool(best_weighted_score >= match_threshold)
         
-        # Format response with weighted scores
         matches = []
         for i, (meta, dtw_score, faiss_score, weighted_score) in enumerate(weighted_reranked):
             matches.append({
@@ -337,7 +308,7 @@ def process_audio_query(
                 "filename": meta["filename"],
                 "dtw_score": float(round(dtw_score, 4)),
                 "similarity": float(round(faiss_score * 100, 2)),
-                "weighted_score": float(round(weighted_score, 4))  # New field
+                "weighted_score": float(round(weighted_score, 4)) 
             })
         
         return {
@@ -351,7 +322,6 @@ def process_audio_query(
             "scoring_method": "weighted"
         }
     else:
-        # Legacy: Use DTW threshold only
         dtw_threshold = dtw_threshold or DTW_THRESHOLD
         best_dtw_score = reranked[0][1] if reranked else float('inf')
         found_match = bool(best_dtw_score < dtw_threshold)
@@ -368,4 +338,3 @@ def process_audio_query(
             "similarity_threshold": similarity_threshold,
             "scoring_method": "threshold"
         }
-

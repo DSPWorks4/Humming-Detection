@@ -1,9 +1,3 @@
-"""
-Embedding Logic for Query-by-Humming System
-Uses basic-pitch to convert audio to MIDI notes, then creates a 128-D pitch histogram.
-Supports Demucs vocal isolation and key normalization.
-"""
-
 import numpy as np
 from basic_pitch.inference import predict
 from basic_pitch import ICASSP_2022_MODEL_PATH
@@ -13,9 +7,7 @@ import os
 import subprocess
 import shutil
 
-# Global flag to check if Demucs is available
 _DEMUCS_AVAILABLE = None
-
 
 def is_demucs_available():
     """Check if Demucs is installed and available."""
@@ -33,14 +25,9 @@ def is_demucs_available():
             _DEMUCS_AVAILABLE = False
     return _DEMUCS_AVAILABLE
 
-
 def isolate_vocals_demucs(audio_file: str, output_dir: str = None) -> str:
     """
     Use Demucs to isolate vocals from an audio file.
-    
-    Args:
-        audio_file: Path to the input audio file
-        output_dir: Optional output directory (uses temp dir if None)
         
     Returns:
         Path to the isolated vocals audio file
@@ -49,20 +36,19 @@ def isolate_vocals_demucs(audio_file: str, output_dir: str = None) -> str:
         output_dir = tempfile.mkdtemp(prefix='demucs_')
     
     # Run Demucs with htdemucs_ft model (fine-tuned, better quality)
-    # Falls back to htdemucs if ft model not available
     try:
         subprocess.run(
             [
                 'demucs',
-                '--two-stems', 'vocals',  # Only separate vocals/other
-                '-n', 'htdemucs',          # Use htdemucs model
+                '--two-stems', 'vocals',  
+                '-n', 'htdemucs',        
                 '-o', output_dir,
                 audio_file
             ],
             capture_output=True,
             text=True,
             check=True,
-            timeout=300  # 5 minute timeout
+            timeout=600  # 10 minute timeout
         )
     except subprocess.CalledProcessError as e:
         print(f"Demucs error: {e.stderr}")
@@ -77,15 +63,10 @@ def isolate_vocals_demucs(audio_file: str, output_dir: str = None) -> str:
     
     return vocals_path
 
-
 def normalize_pitch_to_median(note_events: list, target_median: int = 60) -> list:
     """
     Normalize note pitches so the median pitch equals the target.
     This provides key invariance.
-    
-    Args:
-        note_events: List of (start_time, end_time, pitch_midi, amplitude, pitch_bend)
-        target_median: Target median MIDI pitch (default 60 = middle C)
         
     Returns:
         List of note events with shifted pitches
@@ -93,13 +74,12 @@ def normalize_pitch_to_median(note_events: list, target_median: int = 60) -> lis
     if not note_events:
         return note_events
     
-    # Extract all pitches weighted by duration
     pitches = []
     for note in note_events:
         start_time, end_time, pitch_midi, amplitude, _ = note
         duration = end_time - start_time
         # Add pitch multiple times based on duration (weighted)
-        count = max(1, int(duration * 10))  # 10 samples per second
+        count = max(1, int(duration * 40))  # 40 samples per second
         pitches.extend([pitch_midi] * count)
     
     if not pitches:
@@ -114,12 +94,10 @@ def normalize_pitch_to_median(note_events: list, target_median: int = 60) -> lis
     for note in note_events:
         start_time, end_time, pitch_midi, amplitude, pitch_bend = note
         new_pitch = pitch_midi + shift
-        # Clamp to valid MIDI range
         new_pitch = np.clip(new_pitch, 0, 127)
         normalized_events.append((start_time, end_time, new_pitch, amplitude, pitch_bend))
     
     return normalized_events
-
 
 def generate_embedding(
     audio_file: str,
@@ -132,47 +110,35 @@ def generate_embedding(
     """
     Generate a 128-dimensional pitch histogram embedding from an audio file.
     
-    Args:
-        audio_file: Path to the audio file (.wav, .mp3, .webm, etc.)
-        use_demucs: Whether to use Demucs for vocal isolation (recommended for songs)
-        use_hpss: Whether to apply HPSS (fallback if Demucs unavailable, good for humming)
-        normalize_key: Whether to normalize pitch to a reference (key invariance)
-        target_median_pitch: Target median MIDI pitch for normalization (default 60 = C4)
-        max_duration: Maximum audio duration in seconds (for speed)
-        
     Returns:
         A normalized 128-dimensional numpy array representing pitch occurrences
     """
     demucs_output_dir = None
     
     try:
-        # Step 1: Vocal isolation
+        # Vocal isolation
         if use_demucs and is_demucs_available():
             print(f"  Using Demucs for vocal isolation...")
             demucs_output_dir = tempfile.mkdtemp(prefix='demucs_')
             vocals_path = isolate_vocals_demucs(audio_file, demucs_output_dir)
             y, sr = librosa.load(vocals_path, sr=22050, mono=True, duration=max_duration)
         else:
-            # Load audio directly (limit duration for speed)
             y, sr = librosa.load(audio_file, sr=22050, mono=True, duration=max_duration)
             
-            # Apply HPSS if requested (fallback for vocal isolation)
             if use_hpss:
                 print(f"  Using HPSS for harmonic separation...")
                 y_harmonic, _ = librosa.effects.hpss(y)
                 y = y_harmonic
         
-        # Trim silence
         y, _ = librosa.effects.trim(y, top_db=20)
         
-        # Save to temporary file for basic-pitch
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
             tmp_path = tmp.name
             import soundfile as sf
             sf.write(tmp_path, y, sr)
         
         try:
-            # Run basic-pitch inference
+            # Try Tuning these for a better results
             _, _, note_events = predict(
                 tmp_path,
                 model_or_model_path=ICASSP_2022_MODEL_PATH,
@@ -186,11 +152,11 @@ def generate_embedding(
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
         
-        # Step 2: Key normalization (pitch shift to reference)
+        # normalization (pitch shift to reference)
         if normalize_key and note_events:
             note_events = normalize_pitch_to_median(note_events, target_median_pitch)
         
-        # Step 3: Create 128-dimensional histogram
+        # Create 128-dimensional histogram
         histogram = np.zeros(128, dtype=np.float32)
         
         for note in note_events:
@@ -207,10 +173,8 @@ def generate_embedding(
         return histogram.astype(np.float32)
         
     finally:
-        # Cleanup Demucs temp directory
         if demucs_output_dir and os.path.exists(demucs_output_dir):
             shutil.rmtree(demucs_output_dir, ignore_errors=True)
-
 
 def generate_embedding_from_array(
     y: np.ndarray,
@@ -221,32 +185,23 @@ def generate_embedding_from_array(
 ) -> np.ndarray:
     """
     Generate embedding from a numpy array of audio samples.
-    
-    Args:
-        y: Audio samples as numpy array
-        sr: Sample rate
-        use_hpss: Whether to apply HPSS
-        normalize_key: Whether to normalize pitch to a reference
-        target_median_pitch: Target median MIDI pitch for normalization
         
     Returns:
         A normalized 128-dimensional numpy array
     """
-    # Apply HPSS if requested
     if use_hpss:
         y_harmonic, _ = librosa.effects.hpss(y)
         y = y_harmonic
     
-    # Trim silence
     y, _ = librosa.effects.trim(y, top_db=20)
     
-    # Save to temporary file
     with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
         tmp_path = tmp.name
         import soundfile as sf
         sf.write(tmp_path, y, sr)
     
     try:
+        # Try Tuning these for a better results
         _, _, note_events = predict(
             tmp_path,
             model_or_model_path=ICASSP_2022_MODEL_PATH,
@@ -260,7 +215,7 @@ def generate_embedding_from_array(
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
     
-    # Key normalization
+    # Normalization
     if normalize_key and note_events:
         note_events = normalize_pitch_to_median(note_events, target_median_pitch)
     
@@ -280,15 +235,9 @@ def generate_embedding_from_array(
     
     return histogram.astype(np.float32)
 
-
 def extract_chromagram(audio_file: str, use_demucs: bool = True, use_hpss: bool = True) -> np.ndarray:
     """
     Extract chromagram from an audio file for DTW re-ranking.
-    
-    Args:
-        audio_file: Path to the audio file
-        use_demucs: Whether to use Demucs for vocal isolation
-        use_hpss: Whether to apply HPSS (fallback)
         
     Returns:
         Chromagram numpy array of shape (12, T)
@@ -324,16 +273,10 @@ def extract_chromagram(audio_file: str, use_demucs: bool = True, use_hpss: bool 
         if demucs_output_dir and os.path.exists(demucs_output_dir):
             shutil.rmtree(demucs_output_dir, ignore_errors=True)
 
-
 def extract_chromagram_from_array(y: np.ndarray, sr: int = 22050, use_hpss: bool = True) -> np.ndarray:
     """
     Extract chromagram from audio array for DTW re-ranking.
-    
-    Args:
-        y: Audio samples as numpy array
-        sr: Sample rate
-        use_hpss: Whether to apply HPSS
-        
+
     Returns:
         Chromagram numpy array of shape (12, T)
     """
@@ -352,7 +295,6 @@ def extract_chromagram_from_array(y: np.ndarray, sr: int = 22050, use_hpss: bool
 
 
 if __name__ == "__main__":
-    # Test with a sample file
     import sys
     if len(sys.argv) > 1:
         audio_path = sys.argv[1]
